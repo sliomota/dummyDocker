@@ -1,126 +1,137 @@
-# dummyDocker
+### dummyDocker
 
-Container para guardar mis ejercicios de docker
+Contenedor para guardar mis ejercicios de Docker.
 
 ### Dockerfile
 
-- **FROM:**
-  - Se utiliza para indicar que imagen se va a utilizar/ descargar
+- FROM:
 
-```Dockerfile
-    FROM IMAGE:TAG
-```
+  - Indica qué imagen base se va a usar/descargar.
 
-- **WORKDIR:**
-  - Se utiliza para indicar cual es el directorio de trabajo de docker +- como el root de linux (/)
+  ```Dockerfile
+  FROM IMAGEN:TAG
+  ```
 
-```Dockerfile
-WORKDIR /app
-```
+- WORKDIR:
 
-- **COPY:**
+  - Define el directorio de trabajo dentro del contenedor (similar al directorio raíz de Linux).
 
-  - Se utiliza para indicar que archivos se van a añadir al contenedor, y con esto y la cache se pude jugar para construir las imagenes mas rapido
+  ```Dockerfile
+  WORKDIR /app
+  ```
 
-  - se usa . en vez de _ para indicar todo de una ruta ej: en vez de ex/_ es ex/.
+- COPY:
 
-```Dockerfile
-COPY fuente destino
-```
+  - Copia archivos/directorios del contexto de build al contenedor. Puedes aprovechar la caché de Docker para acelerar las builds.
+  - Usa “.” para referirte a “todo el contenido” de una ruta (por ejemplo, ex/. en lugar de ex/\_).
 
-- **RUN:**
-  - Funciona para ejecutar comandos durante la construccion de el contenedor, es decir cada que se ejecuta la imagen este corre el comando;
+  ```Dockerfile
+  COPY fuente destino
+  ```
 
-```Dockerfile
-RUN npm i
-```
+- RUN:
 
-> es decir `RUN comando`
+  - Ejecuta comandos durante la construcción de la imagen (build time). Cada instrucción crea una capa.
 
-- **CMD**
-  - Este comando es como run pero para cuando el contenedor se inicia, es decir no se ejecuta con la build sino con el run, y es como un array a la hora de introducir un comando.
+  ```Dockerfile
+  RUN npm i
+  ```
 
-```Dockerfile
-CMD ["Comando","Parametro"]
-```
+  Equivale a: `RUN <comando>`
 
-### Multistage Dockerfile
+- CMD:
+  - Define el comando por defecto que se ejecuta cuando el contenedor inicia (run time). Recomendado en formato de array (exec form).
+  ```Dockerfile
+  CMD ["comando", "parametro"]
+  ```
 
-Te permite dividir la construccion de el contenedor en dos partes **Builder Stage** y **Serve Stage**, se usa **AS** para llamar a la fase.
+### Dockerfile multietapa (Multistage)
+
+Permite dividir la construcción en fases, típicamente “builder” y “serve/run”. Se usa AS para nombrar cada fase.
 
 ```Dockerfile
 FROM IMAGEN:TAG AS STAGE
 ```
 
-- **Builder Stage:**
+- Builder stage:
 
-  - Contiene una imagen mas grande y pesada que contendra todos los ejecutables y librerias necesarias para construir la aplicacion.
+  - Usa una imagen completa con herramientas y librerías necesarias para compilar/construir la aplicación.
 
-- **Serve Stage:**
-  - Esta fase contiene una imagen mas pequeña, solo lo suficiente para ejecutar mi aplicacion
+- Serve stage:
+  - Usa una imagen ligera con lo mínimo para ejecutar la aplicación.
 
-> De esta forma podemos construir un contenedor ligero pero que contenga todas las librerias y utilidades necesarias.
+Así obtienes una imagen final más pequeña y segura.
 
-#### Ejemplo Multistage Dockerfile
+#### Ejemplo de Dockerfile multietapa
 
 ```Dockerfile
-#fase de buildeo
+# Fase de construcción (builder)
 FROM node:lts AS builder
 
 WORKDIR /app
 
-COPY ./package.json ./
-#instalo librerias
+COPY package.json ./
+# Instala dependencias (usa ci si tienes package-lock.json)
 RUN npm i
 
-#-----------------------------------------------------------
-#fase de servido
+# -----------------------------------------------------------
+# Fase de ejecución (serve)
 FROM node:lts-alpine AS serve
 
 WORKDIR /app
-#de el builder copiamos las librerias ya instaladas
+
+# Copia dependencias desde el builder
 COPY --from=builder /app/node_modules ./node_modules
-#Copiamos el ejecutable
-COPY ./server.js .
+
+# Copia el código/ejecutable
+COPY server.js .
 
 EXPOSE 3000
-#Ejecutamos el ejecutable 😃😃😃😃😃
-CMD [ "node","server.js" ]
+
+# Comando por defecto
+CMD ["node", "server.js"]
 ```
 
----
+### Docker Engine (comandos básicos)
 
-### Docker Engine
+- Build:
 
-pues los comandos de docker son muy simples como casi todos los comandos de linux son +- `docker accion parametro/ruta`
+  - Construye una imagen.
+  - Base: `docker build .`
+  - Con nombre y tag: `docker build -t nombre:tag .`
 
-- **Docker Build:**
+- Run:
 
-  - Se usa para construir la imagen
-  - `docker build .` es el comando en genera pero puedes añadir opciones como:
-    - `-t name:tag` para ñadir un nombre y tag
+  - Crea y ejecuta un contenedor a partir de una imagen (por nombre o hash).
+  - Base: `docker run <imagen|hash>`
+  - Opciones útiles:
+    - `--name nombreContenedor` asigna nombre.
+    - `-p puerto_host:puerto_contenedor` publica puertos.
+    - `-d` ejecuta en segundo plano (detached).
+    - `--rm` elimina el contenedor al finalizar.
+    - `-it` sesión interactiva (útil para shells/inputs).
 
-- **Docker Run:**
+- ps:
 
-  - se usa para crear el contenedor se usa el hash de la imagen o el nombre.
+  - Lista contenedores en ejecución. Con `-a`, lista todos (incluidos detenidos).
+  - `docker ps` | `docker ps -a`
 
-    - `docker run hash/nombre_imagen` este es el comando genera y sus opciones son:
-    - `docker run --name nombreContenedor imagen` esto es para asignarle el nombre al contenedor
-    - `docker run -p puerto:puerto-container imagen` lo que hace es decirle a docker que exponga el puerto de el contenedor a el puerto selcionado
-    - `docker run -d imagen` hace que se inicie el contenedor en modo detached(que libere el terminal y que el contenedor se ejecute en segundo plano)
+- image:
 
-    - `docker run --rm nombreImagen imagen` hace que se elimine el contenedor cuando se termine su ejecucion
-    - `docker run -it imagen` lo que hace es que se cree un terminal interactivo(muy util si tienes que ver logs o si tienes que introducir datos para un input)
+  - Gestiona imágenes.
+  - `docker image ls` lista imágenes.
+  - `docker image rm <nombre|hash>` elimina una imagen.
 
-- **Docker ps:**
-  - esto sirve para ver los contenedores activos, con `-a` sirve para ver todos los contenedores en general
-- **Docker image:**
+- container:
 
-  - sirve para manejar las imagens de docker con `ls` es para ver las imagenes,con `rm nombreImagen` es para eliminar una imagen ,
+  - Gestiona contenedores.
+  - `docker container ls` lista contenedores.
+  - `docker container rm <nombre|hash>` elimina un contenedor.
+  - `docker container attach <nombre|hash>` adjunta la consola.
 
-- **Docker container:**
-  - se usa para manejar los contenedores, con `ls` muestra los contenedores, con `rm nombreContainer` elimina el contenedor seleccionado, con `--attach` se le puede asignar un input al contenedor seleccionado
-- **Docker rm:**
-  - es para elminiar el conteneedor seleccionado, `docker rm hash/nombreContenedor`
-- **Docker rmi:**
-  - es para eliminar la image seleccionada `docker rm hash/nombreImagen`
+- rm:
+
+  - Atajo para eliminar contenedores: `docker rm <nombre|hash>`.
+
+- rmi:
+  - Elimina imágenes: `docker rmi <nombre|hash>`.
